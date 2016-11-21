@@ -6,7 +6,7 @@ package numservice;
  */
 public enum ControlMessage {
     // time out when waiting the worker count
-    TIMEOUT(-1),
+    CLIENT_TIMEOUT(-1),
     // query total sum of all sent numbers
     QUERY_SUM_COMPLETE(1),
     // query the max sum of numbers for a specific worker
@@ -23,7 +23,15 @@ public enum ControlMessage {
     // the corresponding integer sent over socket
     private final int value;
 
+    // constructor
     ControlMessage(int value) {
         this.value = value;
+    }
+
+    /**
+     * @return The integer value of the message
+     */
+    public int getValue() {
+        return value;
     }
 }
