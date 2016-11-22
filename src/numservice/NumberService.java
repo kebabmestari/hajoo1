@@ -49,7 +49,7 @@ public class NumberService {
     public void init(String client) {
         netService = new NetworkCommunicationService(client, UDP_CLIENT_PORT);
         try {
-            netService.initConnection();
+            netService.initServiceConnection();
         } catch (Exception e) {
             e.printStackTrace();
             exit();
@@ -78,7 +78,6 @@ public class NumberService {
             );
         }
 
-        System.out.println(numWorkers);
         return numWorkers;
     }
 

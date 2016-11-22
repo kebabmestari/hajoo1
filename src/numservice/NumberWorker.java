@@ -1,6 +1,9 @@
 package numservice;
 
+import java.io.ObjectInputStream;
 import java.net.ServerSocket;
+import java.net.Socket;
+import java.net.SocketTimeoutException;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
@@ -17,6 +20,9 @@ public class NumberWorker implements Runnable {
 
     // server socket for this worker
     private ServerSocket socket;
+    private Socket clientSocket;
+
+    private NetworkCommunicationService netService;
 
     // worker id
     private int id;
@@ -26,14 +32,33 @@ public class NumberWorker implements Runnable {
         this.id = workerId++;
         this.count.set(0);
 
-        // TODO: 21.11.2016 SERVER SOCKET IMPLEMENTATION 
-
-        LOG.info("Worker " + this.id + " instatiated");
+        LOG.info("Worker " + id + " created, not yet connected");
     }
 
     @Override
     public void run() {
-        // TODO: 21.11.2016 IMPLEMENT LISTENING
+        // listen to client connection
+        netService = new NetworkCommunicationService();
+        try {
+            netService.initWorkerConnection();
+            LOG.info("Worker " + this.id + " instantiated and connected");
+        } catch (Exception e) {
+            LOG.warning("Worker " + this.id + " could not create establish connection");
+            closeWorker();
+        }
+
+        // listen to messages
+        try {
+            while(true) {
+                int msg = netService.listenToTCPMessage();
+                Thread.sleep(5);
+            }
+        } catch (SocketTimeoutException e) {
+            LOG.warning("Worker " + id + " timeout, closing");
+            closeWorker();
+        } catch (InterruptedException e) {
+            LOG.info("Worker " + id + " thread " + Thread.currentThread().getName() + " interrupted");
+        }
     }
 
     /**

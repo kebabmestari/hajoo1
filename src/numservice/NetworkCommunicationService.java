@@ -54,11 +54,19 @@ public class NetworkCommunicationService {
     }
 
     /**
-     * Initiate the connection
+     * Constructor for a worker connection
+     * Does not connect anywhere by default, listens to client connection
+     */
+    public NetworkCommunicationService() {
+        LOG.info("Creating new worker Communications service object");
+    }
+
+    /**
+     * Initiate the connection for the main service
      *
      * @throws Exception if something went wrong and connection could not be established
      */
-    public void initConnection() throws Exception {
+    public void initServiceConnection() throws Exception {
 
         LOG.info("Initializing connection to " + clientHostString + ":" + clientUDPPort);
 
@@ -82,17 +90,88 @@ public class NetworkCommunicationService {
             throw new Exception("Could not establish connection");
         }
 
+        try {
+            getStreams();
+        } catch (Exception e) {
+            throw new Exception("Could not get streams");
+        }
+
         // check if connection is established
         if (clientSocket == null) {
             throw new Exception("Client did not connect in time");
         }
 
         LOG.info("Connection established");
+    }
 
+    /**
+     * Initialize the worker connection
+     *
+     * @throws Exception
+     */
+    public void initWorkerConnection() throws Exception {
+
+        LOG.info("Initializing connection to ");
+
+        if (serverSocket != null) {
+            LOG.warning("Socket is already open");
+            return;
+        }
+
+        try {
+            establishWorkerConnection();
+        } catch (Exception e) {
+            throw new Exception("Could not establish connection");
+        }
+
+        try {
+            getStreams();
+        } catch (Exception e) {
+            throw new Exception("Could not get streams");
+        }
+
+        // check if connection is established
+        if (clientSocket == null) {
+            throw new Exception("Client did not connect in time");
+        }
+
+        LOG.info("Connection established");
+    }
+
+    /**
+     * Create a server socket and listen to a connection
+     * Block until the client connects to the worker and then return
+     */
+    private void establishWorkerConnection() throws Exception {
+        LOG.info("Establishing worker connection");
+        // create TCP socket
+        try {
+            serverSocket = NetworkUtils.createServerSocket(MIN_PORT, MAX_PORT);
+            // client connection timeout
+            serverSocket.setSoTimeout(UDP_CONNECT_TIMEOUT); //// TODO: 23.11.2016 WORKER CONNECTION TIMEOUT?
+        } catch (Exception e) {
+            throw new Exception("Could not bind a worker to a port");
+        }
+
+        try {
+            clientSocket = serverSocket.accept();
+        } catch (SocketTimeoutException e) {
+            throw new Exception("Client did not connect to worker in time");
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * @return port which the server is listening to
+     */
+    private int getPort() {
+        return serverSocket.getLocalPort();
     }
 
     /**
      * Resolve client address and create INetAddress object
+     *
      * @throws Exception if host could not be resolved
      */
     private void resolveHost() throws Exception {
@@ -218,10 +297,10 @@ public class NetworkCommunicationService {
     public void closeConnection() {
         LOG.info("Closing sockets");
         try {
-            if(serverSocket != null) serverSocket.close();
-            if(clientSocket != null) clientSocket.close();
-            if(oIs != null) oIs.close();
-            if(oOs != null) oOs.close();
+            if (serverSocket != null) serverSocket.close();
+            if (clientSocket != null) clientSocket.close();
+            if (oIs != null) oIs.close();
+            if (oOs != null) oOs.close();
         } catch (IOException e) {
             e.printStackTrace();
             LOG.warning("Failed closing the sockets");
