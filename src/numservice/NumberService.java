@@ -16,9 +16,6 @@ import java.util.logging.Logger;
  */
 public class NumberService {
 
-    // udp connection timeout in the beginning
-    public static final int UDP_CONNECT_RETRIES = 5;
-    public static final int UDP_CONNECT_TIMEOUT = 5000;
     // timeout to end the server-client connection if no queries are made
     public static final int QUERY_TIMEOUT = 60000;
     // worker constraints
@@ -26,37 +23,23 @@ public class NumberService {
     public static final int MIN_WORKERS = 2;
     // server UDP connection port
     public static final int UDP_CLIENT_PORT = 3126;
-    // port range
-    public static final int MIN_PORT = 1024;
-    public static final int MAX_PORT = 65535;
 
-    // server client socket
-    private ServerSocket serverSocket;
-    // socket to client
-    private Socket clientSocket;
+    // service for the client server communication
+    private NetworkCommunicationService netService;
 
-    // TCP input stream
-    private ObjectInputStream oIs;
-    // TCP output stream
-    private ObjectOutputStream oOs;
-
-    // client host name or address
-    private InetAddress clientHost;
 
     /**
-     * Application netry point
+     * Application entry point
      * @param args command line arguments
      */
     public static void main(String[] args) {
-        new NumberService().init(args[1]);
+        new NumberService().init(args[0]);
     }
 
     /**
      * Constructor
      */
     public NumberService() {
-        serverSocket = null;
-        clientSocket = null;
         LOG.info("Initializing new service server object");
     }
 
@@ -64,51 +47,46 @@ public class NumberService {
      * Initialize and start the service
      */
     public void init(String client) {
-
-        // resolve client address
+        netService = new NetworkCommunicationService(client, UDP_CLIENT_PORT);
         try {
-            clientHost = InetAddress.getByName(client);
-        } catch (UnknownHostException e) {
-            LOG.warning("Can't resolve host, exiting");
-            exit();
-        }
-
-        // connect with client
-        establishConnection();
-
-        // check if connection is established
-        if(clientSocket == null) {
-            LOG.warning("Client did not connect in time, exiting");
-            exit();
-        }
-
-
-        // get streams
-        try {
-            InputStream iS = clientSocket.getInputStream();
-            OutputStream oS = clientSocket.getOutputStream();
-            oS.flush();
-            oOs = new ObjectOutputStream(oS);
-            oIs = new ObjectInputStream(iS);
-        } catch (IOException e) {
+            netService.initConnection();
+        } catch (Exception e) {
             e.printStackTrace();
-            LOG.warning("Failed to get streams, exiting");
             exit();
         }
-
-
     }
 
     /**
-     * Close sockets and workers
-     * gracefully
+     * Receive to initial message from client
+     * Which encloses the worker count
+     */
+    public int getWorkerCount() {
+        // listen to the initial message from client
+        // which equals the number of worker threads needed
+        int numWorkers = 0;
+        try {
+            numWorkers = netService.listenToTCPMessage(); // BLOCKS
+        } catch (SocketTimeoutException e) {
+            LOG.warning("Failed to receive the initial message from client, exiting");
+            exit();
+        }
+
+        // check validness
+        if (!(numWorkers >= MIN_WORKERS) && (numWorkers <= MAX_WORKERS)) {
+            LOG.severe("Invalid number of worker threads received from client" +
+                    "\nreceived: " + numWorkers + " legal: " + MIN_WORKERS + "-" + MAX_WORKERS
+            );
+        }
+
+        System.out.println(numWorkers);
+        return numWorkers;
+    }
+
+    /**
+     * Close connection
      */
     public void closeConnection() {
-        LOG.info("Closing sockets");
-        if(serverSocket != null) serverSocket.close();
-        if(clientSocket != null) clientSocket.close();
-        LOG.info("Closing workers");
-        // TODO: 22.11.2016 CLOSING WORKERS
+        if(netService != null) netService.closeConnection();
     }
 
     /**
@@ -116,57 +94,15 @@ public class NumberService {
      */
     public void exit() {
         closeConnection();
-        System.err.println("Closing..");
+        System.err.println("Exiting..");
         System.exit(0);
     }
 
     /**
-     * Listen to client connecting
+     * @return NetworkCommunicationService object
      */
-    public void establishConnection() {
-        // create TCP socket
-        try {
-            serverSocket = NetworkUtils.createServerSocket(MIN_PORT, MAX_PORT);
-            // client connection timeout
-            serverSocket.setSoTimeout(UDP_CONNECT_TIMEOUT);
-        } catch (Exception e) {
-            LOG.warning("Could not bind a port, exiting");
-            System.exit(0);
-        }
-
-        int tries = 0;
-        while (tries < UDP_CONNECT_RETRIES) {
-            try {
-                // send the client an udp packet containing the tcp port to connect
-                sendPort();
-                // listen to connection to tcp port
-                clientSocket = serverSocket.accept();
-                LOG.info("Client " + clientSocket.getInetAddress().toString() +
-                        " connected to port " + serverSocket.getLocalPort());
-            } catch (SocketTimeoutException e) {
-                // send udp packet again
-                tries++;
-                continue;
-            } catch (Exception e) {
-                e.printStackTrace();
-                break;
-            }
-        }
-    }
-
-    /**
-     * Send the TCP port to the client
-     * using UDP datagram packets
-     */
-    public void sendPort() throws Exception {
-        // message, tcp port
-        byte[] udpData = Integer.toString(serverSocket.getLocalPort()).getBytes();
-        DatagramSocket udpSocket = new DatagramSocket();
-        DatagramPacket packet = new DatagramPacket(udpData,
-                udpData.length,
-                clientHost,
-                UDP_CLIENT_PORT);
-        udpSocket.send(packet);
+    public NetworkCommunicationService getNetworkService() {
+        return netService;
     }
 
     // logger

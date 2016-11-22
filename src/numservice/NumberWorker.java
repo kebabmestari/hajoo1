@@ -24,7 +24,7 @@ public class NumberWorker implements Runnable {
     public NumberWorker(int id, AtomicInteger target) {
         this.target = target;
         this.id = workerId++;
-        this.count = 0;
+        this.count.set(0);
 
         // TODO: 21.11.2016 SERVER SOCKET IMPLEMENTATION 
 
@@ -48,6 +48,7 @@ public class NumberWorker implements Runnable {
      */
     public int getPort() {
 
+        return 0;
     }
 
     /**
@@ -55,6 +56,7 @@ public class NumberWorker implements Runnable {
      */
     public int getCount() {
 
+        return 0;
     }
 
     /**
