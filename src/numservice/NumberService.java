@@ -1,18 +1,16 @@
 package numservice;
 
-import java.io.*;
-import java.net.*;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.net.SocketTimeoutException;
+import java.util.*;
 import java.util.logging.Logger;
 
 /**
  * Main class
- *
+ * <p>
  * Provides number summing services for a remote server
  *
  * @author Samuel Lindqvist
- * Created by samlinz on 21.11.2016.
+ *         Created by samlinz on 21.11.2016.
  */
 public class NumberService {
 
@@ -27,19 +25,28 @@ public class NumberService {
     // service for the client server communication
     private NetworkCommunicationService netService;
 
+    // worker targets
+    private Map<NumberWorker, WorkerStatus> workerStatuses;
+    private List<Thread> threadList;
+
 
     /**
      * Application entry point
+     *
      * @param args command line arguments
      */
     public static void main(String[] args) {
-        new NumberService().init(args[0]);
+        String client = args.length > 0 ? args[0] : "localhost";
+        new NumberService().init(client);
     }
 
     /**
      * Constructor
      */
     public NumberService() {
+        // init empty map
+        workerStatuses = new HashMap<>();
+        threadList = new ArrayList<>();
         LOG.info("Initializing new service server object");
     }
 
@@ -54,6 +61,26 @@ public class NumberService {
             e.printStackTrace();
             exit();
         }
+
+        // create workers
+        int[] wPorts = createWorkers(getWorkerCount());
+        System.out.println(wPorts.toString());
+
+        // send worker ports to client
+        sendWorkerPorts(wPorts);
+
+        // listen to queries from client while workers are running
+        listenToQueries();
+    }
+
+    /**
+     * Send client the ports of the created workers
+     */
+    private void sendWorkerPorts(int[] ports) {
+        LOG.info("Sending worker ports to client");
+        Arrays.stream(ports).forEach((p) -> {
+            netService.sendTCPMessage(p);
+        });
     }
 
     /**
@@ -82,19 +109,112 @@ public class NumberService {
     }
 
     /**
-     * Close connection
+     * Create workers
      */
-    public void closeConnection() {
-        if(netService != null) netService.closeConnection();
+    private int[] createWorkers(int count) {
+        int[] result = new int[count];
+        for (int i = 0; i < count; i++) {
+
+            // new thread safe status object
+            WorkerStatus status = new WorkerStatus();
+            NumberWorker worker = new NumberWorker(i, status);
+            workerStatuses.put(worker, status);
+
+            // create a new thread object for worker and add to list
+            Thread newThread = new Thread(worker);
+            threadList.add(newThread);
+
+            // start the worker
+            newThread.start();
+            LOG.info("Worker " + i + " created and started");
+
+            // poll for the port
+            while(true) {
+                int port = worker.getPort();
+                if(port != 0) {
+                    result[i] = port;
+                    break;
+                }
+            }
+        }
+        return result;
     }
 
     /**
-     * Close connections and exit system
+     * Main thread listens to queries and responds accordingly
+     * while the workers do their jobs
+     */
+    private void listenToQueries() {
+        // set new timeout
+        netService.setTimeout(QUERY_TIMEOUT);
+        while (true) {
+            try {
+                int msg = netService.listenToTCPMessage();
+                if (handleQuery(msg)) break;
+            } catch (SocketTimeoutException e) {
+                LOG.warning("Main connection timed out, closing");
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+        closeConnection();
+    }
+
+    /**
+     * Handle queries and other control messages from client
+     *
+     * @param msg deserialized message integer value
+     * @return true if connection closing message was received
+     */
+    private boolean handleQuery(int msg) {
+        System.out.println(msg);
+        if (msg == ControlMessage.QUERY_MAX_SUM_WORKER.getValue()) {
+
+        } else if (msg == ControlMessage.QUERY_SUM_COMPLETE.getValue()) {
+
+        } else if (msg == ControlMessage.QUERY_NUMBER_COUNT.getValue()) {
+
+        } else if (msg == ControlMessage.CLOSE_CONNECTION.getValue()) {
+            return true;
+        } else {
+            netService.sendTCPMessage(ControlMessage.INVALID_QUERY.getValue());
+        }
+        return false;
+    }
+
+    /**
+     * Close connection
+     */
+    public void closeConnection() {
+        if (netService != null) netService.closeConnection();
+        // tell each worker to stop and quit
+        threadList.stream().forEach((t) -> t.interrupt());
+
+        LOG.info("Waiting for workers to close");
+
+        // wait until the workers are all closed and then quit
+        boolean areWorkersClosed;
+        do {
+            areWorkersClosed = true;
+            for (Thread t : threadList) {
+                if(t.isAlive()) areWorkersClosed = false;
+            }
+        } while(!areWorkersClosed);
+
+        LOG.info("Exiting..");
+
+        // exit cleanly
+        System.exit(0);
+    }
+
+    /**
+     * Close connections and exit system in case of error
+     * Signal an error with status 1
      */
     public void exit() {
         closeConnection();
         System.err.println("Exiting..");
-        System.exit(0);
+        System.exit(1);
     }
 
     /**

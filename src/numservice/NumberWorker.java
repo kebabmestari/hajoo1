@@ -1,12 +1,12 @@
 package numservice;
 
-import java.io.ObjectInputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
-import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
+
+import static numservice.ControlMessage.TERMINATE_STREAM;
 
 /**
  * Created by samlinz on 21.11.2016.
@@ -14,9 +14,7 @@ import java.util.logging.Logger;
 public class NumberWorker implements Runnable {
 
     // target accumulated integer
-    private AtomicInteger target;
-    // number count
-    private AtomicInteger count;
+    private WorkerStatus target;
 
     // server socket for this worker
     private ServerSocket socket;
@@ -24,13 +22,16 @@ public class NumberWorker implements Runnable {
 
     private NetworkCommunicationService netService;
 
+    // binded port, main thread polls
+    private AtomicInteger port;
+
     // worker id
     private int id;
 
-    public NumberWorker(int id, AtomicInteger target) {
+    public NumberWorker(int id, WorkerStatus target) {
         this.target = target;
+        this.port = new AtomicInteger(0);
         this.id = workerId++;
-        this.count.set(0);
 
         LOG.info("Worker " + id + " created, not yet connected");
     }
@@ -40,17 +41,26 @@ public class NumberWorker implements Runnable {
         // listen to client connection
         netService = new NetworkCommunicationService();
         try {
-            netService.initWorkerConnection();
+            // open socket and get the port
+            port.set(netService.initWorkerConnection(id).getLocalPort());
+            // listen for the connection
+            netService.establishWorkerConnection();
             LOG.info("Worker " + this.id + " instantiated and connected");
         } catch (Exception e) {
             LOG.warning("Worker " + this.id + " could not create establish connection");
             closeWorker();
         }
 
+        if(!netService.isConnected()) {
+            LOG.severe("Worker " + id + "was not connected, closing");
+            return;
+        }
+
         // listen to messages
         try {
-            while(true) {
+            while (true) {
                 int msg = netService.listenToTCPMessage();
+                handleMessage(msg);
                 Thread.sleep(5);
             }
         } catch (SocketTimeoutException e) {
@@ -58,51 +68,39 @@ public class NumberWorker implements Runnable {
             closeWorker();
         } catch (InterruptedException e) {
             LOG.info("Worker " + id + " thread " + Thread.currentThread().getName() + " interrupted");
+            closeWorker();
         }
     }
 
-    /**
-     * @return current sum as integer
-     */
-    public int getSum() {
-        return target.get();
+    private void handleMessage(int msg) {
+        // when the client wishes to terminate the number stream
+        if (msg == TERMINATE_STREAM.getValue()) {
+            LOG.info("Worker " + id + " received END OF STREAM");
+            closeWorker();
+            return;
+        }
+
+        // otherwise
+        // add to sum
+        target.addSum(msg);
+        // increment number count
+        target.incrementCount();
+
+        LOG.info("Worker " + id + " received " + msg);
     }
 
     /**
-     * @return socket port
+     * @return binded port, 0 if not set
      */
     public int getPort() {
-
-        return 0;
-    }
-
-    /**
-     * @return count of added values
-     */
-    public int getCount() {
-
-        return 0;
+        return port.get();
     }
 
     /**
      * Close the connection
      */
     public void closeWorker() {
-
-    }
-
-    /**
-     * Add to the sum and increment the counter
-     * @param number addition to the sum
-     */
-    private void add(int number) {
-
-        // add to the sum
-        target.addAndGet(number);
-        // increment the counter
-        count.incrementAndGet();
-
-        LOG.info("Worker " + id + " received increment of " + number);
+        netService.closeConnection();
     }
 
     // logger

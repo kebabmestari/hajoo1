@@ -109,13 +109,40 @@ public class NetworkCommunicationService {
      *
      * @throws Exception
      */
-    public void initWorkerConnection() throws Exception {
+    public ServerSocket initWorkerConnection(int workerId) throws Exception {
 
-        LOG.info("Initializing connection to ");
+        LOG.info("Initializing socket for worker " + workerId);
 
         if (serverSocket != null) {
             LOG.warning("Socket is already open");
-            return;
+            return serverSocket;
+        }
+        // create TCP socket
+        try {
+            serverSocket = NetworkUtils.createServerSocket(MIN_PORT, MAX_PORT);
+            // client connection timeout
+            serverSocket.setSoTimeout(NumberService.QUERY_TIMEOUT);
+        } catch (Exception e) {
+            throw new Exception("Could not bind a worker to a port");
+        }
+
+        return serverSocket;
+
+    }
+
+    /**
+     * Create a server socket and listen to a connection
+     * Block until the client connects to the worker and then return
+     */
+    public void establishWorkerConnection() throws Exception {
+        LOG.info("Establishing worker connection");
+
+        try {
+            clientSocket = serverSocket.accept();
+        } catch (SocketTimeoutException e) {
+            throw new Exception("Client did not connect to worker in time");
+        } catch (Exception e) {
+            e.printStackTrace();
         }
 
         try {
@@ -135,31 +162,7 @@ public class NetworkCommunicationService {
             throw new Exception("Client did not connect in time");
         }
 
-        LOG.info("Connection established");
-    }
-
-    /**
-     * Create a server socket and listen to a connection
-     * Block until the client connects to the worker and then return
-     */
-    private void establishWorkerConnection() throws Exception {
-        LOG.info("Establishing worker connection");
-        // create TCP socket
-        try {
-            serverSocket = NetworkUtils.createServerSocket(MIN_PORT, MAX_PORT);
-            // client connection timeout
-            serverSocket.setSoTimeout(UDP_CONNECT_TIMEOUT); //// TODO: 23.11.2016 WORKER CONNECTION TIMEOUT?
-        } catch (Exception e) {
-            throw new Exception("Could not bind a worker to a port");
-        }
-
-        try {
-            clientSocket = serverSocket.accept();
-        } catch (SocketTimeoutException e) {
-            throw new Exception("Client did not connect to worker in time");
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        LOG.info("Worker connection established");
     }
 
     /**
@@ -197,6 +200,17 @@ public class NetworkCommunicationService {
         } catch (IOException e) {
             e.printStackTrace();
             throw new Exception("Can't create streams");
+        }
+    }
+
+    /**
+     * @param ms new timeout for the connection
+     */
+    public void setTimeout(int ms) {
+        try {
+            serverSocket.setSoTimeout(ms);
+        } catch (SocketException e) {
+            e.printStackTrace();
         }
     }
 
