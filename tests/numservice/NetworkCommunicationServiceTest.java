@@ -32,7 +32,7 @@ public class NetworkCommunicationServiceTest {
     public void initConnection() throws Exception {
         final int port = NumberService.UDP_CLIENT_PORT;
         System.out.println("Connecting to test server at LOCALHOST:" + port);
-        service.initConnection();
+        service.initServiceConnection();
         Assert.assertTrue(service.isConnected());
     }
 
