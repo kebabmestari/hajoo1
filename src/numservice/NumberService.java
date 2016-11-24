@@ -2,6 +2,8 @@ package numservice;
 
 import java.net.SocketTimeoutException;
 import java.util.*;
+import java.util.logging.ConsoleHandler;
+import java.util.logging.Handler;
 import java.util.logging.Logger;
 
 /**
@@ -36,6 +38,20 @@ public class NumberService {
      * @param args command line arguments
      */
     public static void main(String[] args) {
+
+        // remove default handler
+        Logger globalLogger = Logger.getLogger("");
+        Handler[] handlers = globalLogger.getHandlers();
+        for(Handler handler : handlers) {
+            globalLogger.removeHandler(handler);
+        }
+
+        // add custom handler
+        ConsoleHandler customHandler = new ConsoleHandler();
+        customHandler.setFormatter(new CustomLogFormatter());
+        globalLogger.addHandler(customHandler);
+
+        // if no argument is specified, use localhost as client
         String client = args.length > 0 ? args[0] : "localhost";
         new NumberService().init(client);
     }
@@ -64,7 +80,6 @@ public class NumberService {
 
         // create workers
         int[] wPorts = createWorkers(getWorkerCount());
-        System.out.println(wPorts.toString());
 
         // send worker ports to client
         sendWorkerPorts(wPorts);
@@ -156,6 +171,12 @@ public class NumberService {
             } catch (Exception e) {
                 e.printStackTrace();
             }
+            try {
+                Thread.sleep(5);
+            } catch (InterruptedException e) {
+                LOG.warning("Main thread interrupted");
+                exit();
+            }
         }
         closeConnection();
     }
@@ -167,19 +188,59 @@ public class NumberService {
      * @return true if connection closing message was received
      */
     private boolean handleQuery(int msg) {
-        System.out.println(msg);
         if (msg == ControlMessage.QUERY_MAX_SUM_WORKER.getValue()) {
-
+            int answer = getLargestIndividualWorkerSum();
+            LOG.info("Received query MAX_SUM_WORKER, answering " + answer);
+            netService.sendTCPMessage(answer);
         } else if (msg == ControlMessage.QUERY_SUM_COMPLETE.getValue()) {
-
+            int answer = getSumOfAllWorkers();
+            LOG.info("Received query SUM_COMPLETE, answering " + answer);
+            netService.sendTCPMessage(answer);
         } else if (msg == ControlMessage.QUERY_NUMBER_COUNT.getValue()) {
-
+            int answer = getReceivedValuesCount();
+            LOG.info("Received query NUMBER_COUNT, answering " + answer);
+            netService.sendTCPMessage(answer);
         } else if (msg == ControlMessage.CLOSE_CONNECTION.getValue()) {
             return true;
         } else {
+            LOG.info("Received invalid query " + msg + " answering INVALID_QUERY");
             netService.sendTCPMessage(ControlMessage.INVALID_QUERY.getValue());
         }
         return false;
+    }
+
+    /**
+     * @return largest of the individual worker's sums
+     */
+    private int getLargestIndividualWorkerSum() {
+        int largest = 0;
+        for(WorkerStatus e : workerStatuses.values()) {
+            int val = e.getSum();
+            if(val > largest) largest = val;
+        }
+        return largest;
+    }
+
+    /**
+     * @return sum of all of the worker's sums
+     */
+    private int getSumOfAllWorkers() {
+        int sum = 0;
+        for(WorkerStatus e : workerStatuses.values()) {
+            sum += e.getSum();
+        }
+        return sum;
+    }
+
+    /**
+     * @return total count of received values to workers
+     */
+    private int getReceivedValuesCount() {
+        int count = 0;
+        for(WorkerStatus e : workerStatuses.values()) {
+            count += e.getCount();
+        }
+        return count;
     }
 
     /**

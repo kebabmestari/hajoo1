@@ -38,46 +38,48 @@ public class NumberWorker implements Runnable {
 
     @Override
     public void run() {
-        // listen to client connection
-        netService = new NetworkCommunicationService();
         try {
-            // open socket and get the port
-            port.set(netService.initWorkerConnection(id).getLocalPort());
-            // listen for the connection
-            netService.establishWorkerConnection();
-            LOG.info("Worker " + this.id + " instantiated and connected");
-        } catch (Exception e) {
-            LOG.warning("Worker " + this.id + " could not create establish connection");
-            closeWorker();
-        }
+            // listen to client connection
+            netService = new NetworkCommunicationService();
+            try {
+                // open socket and get the port
+                port.set(netService.initWorkerConnection(id).getLocalPort());
+                // listen for the connection
+                netService.establishWorkerConnection();
+                LOG.info("Worker " + this.id + " instantiated and connected");
+            } catch (Exception e) {
+                LOG.warning("Worker " + this.id + " could not create establish connection");
+                closeWorker();
+            }
 
-        if(!netService.isConnected()) {
-            LOG.severe("Worker " + id + "was not connected, closing");
-            return;
-        }
+            if(!netService.isConnected()) {
+                LOG.severe("Worker " + id + "was not connected, closing");
+                return;
+            }
 
-        // listen to messages
-        try {
             while (true) {
+                // listen to messages
                 int msg = netService.listenToTCPMessage();
-                handleMessage(msg);
+                if(handleMessage(msg)) break;
+
                 Thread.sleep(5);
             }
         } catch (SocketTimeoutException e) {
             LOG.warning("Worker " + id + " timeout, closing");
-            closeWorker();
         } catch (InterruptedException e) {
             LOG.info("Worker " + id + " thread " + Thread.currentThread().getName() + " interrupted");
+        } finally {
             closeWorker();
         }
+        LOG.info("Worker " + id + " exiting");
     }
 
-    private void handleMessage(int msg) {
+    private boolean handleMessage(int msg) {
         // when the client wishes to terminate the number stream
         if (msg == TERMINATE_STREAM.getValue()) {
             LOG.info("Worker " + id + " received END OF STREAM");
             closeWorker();
-            return;
+            return true;
         }
 
         // otherwise
@@ -87,6 +89,8 @@ public class NumberWorker implements Runnable {
         target.incrementCount();
 
         LOG.info("Worker " + id + " received " + msg);
+
+        return false;
     }
 
     /**

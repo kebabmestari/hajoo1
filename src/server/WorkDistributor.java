@@ -198,6 +198,7 @@ public class WorkDistributor {
 						if (number == 0) {
 							number++;
 						}
+						System.out.println(j + " " + number);
 						streams[j].writeInt(number);
 						streams[j].flush();
 						table[j] += number;
@@ -312,6 +313,7 @@ public class WorkDistributor {
 				portNumbers[i] = p;
 				if (verboseMode) {
 					System.out.println("Received " + i + "'th port number.");
+					System.out.println(portNumbers[i]);
 				}
 			} // for
 			return aborting;

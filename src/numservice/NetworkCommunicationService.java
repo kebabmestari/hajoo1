@@ -120,6 +120,7 @@ public class NetworkCommunicationService {
         // create TCP socket
         try {
             serverSocket = NetworkUtils.createServerSocket(MIN_PORT, MAX_PORT);
+            LOG.info("Worker " + workerId + " binded to port " + serverSocket.getLocalPort());
             // client connection timeout
             serverSocket.setSoTimeout(NumberService.QUERY_TIMEOUT);
         } catch (Exception e) {
@@ -143,12 +144,6 @@ public class NetworkCommunicationService {
             throw new Exception("Client did not connect to worker in time");
         } catch (Exception e) {
             e.printStackTrace();
-        }
-
-        try {
-            establishWorkerConnection();
-        } catch (Exception e) {
-            throw new Exception("Could not establish connection");
         }
 
         try {
@@ -263,10 +258,12 @@ public class NetworkCommunicationService {
     public int listenToTCPMessage() throws SocketTimeoutException {
         try {
             int msg = oIs.readInt();
-            System.out.println("Received message: " + msg);
+//            System.out.println("Received message: " + msg);
             return msg;
+        } catch (EOFException e) {
         } catch (IOException e) {
-            LOG.warning("Error receiving TCP message: " + e.getMessage());
+            e.printStackTrace();
+            LOG.warning("Error receiving TCP message: " + e.getCause());
         }
         // close connection
         return 0;
@@ -279,10 +276,10 @@ public class NetworkCommunicationService {
      */
     public void sendTCPMessage(int value) {
         try {
-            System.out.println("Sending message: " + value);
+//            System.out.println("Sending message: " + value);
             oOs.writeInt(value);
             oOs.flush();
-            System.out.println("Message sent");
+//            System.out.println("Message sent");
         } catch (IOException e) {
             LOG.warning("Error sending TCP message: " + e.getMessage());
         }
@@ -309,7 +306,6 @@ public class NetworkCommunicationService {
      * gracefully
      */
     public void closeConnection() {
-        LOG.info("Closing sockets");
         try {
             if (serverSocket != null) serverSocket.close();
             if (clientSocket != null) clientSocket.close();
