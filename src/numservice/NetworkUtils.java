@@ -12,6 +12,7 @@ public class NetworkUtils {
 
     /**
      * Find an open port from the given range and open a new serversocket
+     *
      * @param minPort min port
      * @param maxPort max port
      * @return ServerSocket object

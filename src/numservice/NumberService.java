@@ -8,7 +8,7 @@ import java.util.logging.Logger;
 
 /**
  * Main class
- *
+ * <p>
  * Provides number summing services for a remote server
  *
  * @author Samuel Lindqvist
@@ -41,7 +41,7 @@ public class NumberService {
         // remove default handler
         Logger globalLogger = Logger.getLogger("");
         Handler[] handlers = globalLogger.getHandlers();
-        for(Handler handler : handlers) {
+        for (Handler handler : handlers) {
             globalLogger.removeHandler(handler);
         }
 
@@ -108,6 +108,7 @@ public class NumberService {
         try {
             numWorkers = netService.listenToTCPMessage(); // BLOCKS
         } catch (SocketTimeoutException e) {
+            netService.sendTCPMessage(ControlMessage.CLIENT_TIMEOUT.getValue());
             LOG.warning("Failed to receive the initial message from client, exiting");
             exit();
         }
@@ -146,9 +147,9 @@ public class NumberService {
             LOG.info("Worker " + i + " created and started");
 
             // poll for the port
-            while(true) {
+            while (true) {
                 int port = worker.getPort();
-                if(port != 0) {
+                if (port != 0) {
                     result[i] = port;
                     break;
                 }
@@ -217,9 +218,9 @@ public class NumberService {
     private int getLargestIndividualSumWorker() {
         int largest = Integer.MIN_VALUE;
         NumberWorker largestWorker = null;
-        for(NumberWorker w : workerStatuses.keySet()) {
+        for (NumberWorker w : workerStatuses.keySet()) {
             int tempSum = w.getSum();
-            if(tempSum > largest) {
+            if (tempSum > largest) {
                 largest = tempSum;
                 largestWorker = w;
             }
@@ -232,7 +233,7 @@ public class NumberService {
      */
     private int getSumOfAllWorkers() {
         int sum = 0;
-        for(WorkerStatus e : workerStatuses.values()) {
+        for (WorkerStatus e : workerStatuses.values()) {
             sum += e.getSum();
         }
         return sum;
@@ -243,7 +244,7 @@ public class NumberService {
      */
     private int getReceivedValuesCount() {
         int count = 0;
-        for(WorkerStatus e : workerStatuses.values()) {
+        for (WorkerStatus e : workerStatuses.values()) {
             count += e.getCount();
         }
         return count;
@@ -271,9 +272,9 @@ public class NumberService {
         do {
             areWorkersClosed = true;
             for (Thread t : threadList) {
-                if(t.isAlive()) areWorkersClosed = false;
+                if (t.isAlive()) areWorkersClosed = false;
             }
-        } while(!areWorkersClosed);
+        } while (!areWorkersClosed);
 
         LOG.info("Exiting..");
 

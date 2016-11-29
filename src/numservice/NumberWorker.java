@@ -73,7 +73,7 @@ public class NumberWorker implements Runnable {
                 closeWorker();
             }
 
-            if(!netService.isConnected()) {
+            if (!netService.isConnected()) {
                 LOG.severe("Worker " + id + "was not connected, closing");
                 return;
             }
@@ -82,7 +82,7 @@ public class NumberWorker implements Runnable {
             while (this.running.get() == true) {
                 // listen to messages
                 int msg = netService.listenToTCPMessage(id);
-                if(handleMessage(msg)) break;
+                if (handleMessage(msg)) break;
             }
         } catch (SocketTimeoutException e) {
             LOG.warning("Worker " + id + " timeout, closing");
@@ -98,6 +98,7 @@ public class NumberWorker implements Runnable {
     /**
      * Handle an incoming message,
      * edit the state accordingly
+     *
      * @param msg decrypted integer message
      * @return true if a end of communication message was received
      */

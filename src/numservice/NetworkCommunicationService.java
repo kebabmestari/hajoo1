@@ -255,7 +255,7 @@ public class NetworkCommunicationService {
      * @throws SocketTimeoutException if connection timeouts
      */
     public int listenToTCPMessage(int workerNumber) throws SocketTimeoutException {
-        String workerName = workerNumber == -1 ? "Main thread" :"Worker " + workerNumber;
+        String workerName = workerNumber == -1 ? "Main thread" : "Worker " + workerNumber;
         try {
             int msg = oIs.readInt();
 //            System.out.println("Received message: " + msg);
