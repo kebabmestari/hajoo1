@@ -3,8 +3,9 @@ package numservice;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Holds worker's sum and count
- * Created by samlinz on 23.11.2016.
+ * Holds a single worker's sum and count
+ *
+ * @author Samuel Lindqvist
  */
 public class WorkerStatus {
 

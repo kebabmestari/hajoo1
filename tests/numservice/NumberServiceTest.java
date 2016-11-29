@@ -6,7 +6,6 @@ import static org.junit.Assert.*;
 
 /**
  * Test service
- * Created by samlinz on 22.11.2016.
  */
 public class NumberServiceTest {
 

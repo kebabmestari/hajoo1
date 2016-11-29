@@ -12,7 +12,6 @@ import java.util.logging.Logger;
  * TCP for general communication
  *
  * @author Samuel Lindqvist
- *         Created by samlinz on 22.11.2016.
  */
 public class NetworkCommunicationService {
 
@@ -45,7 +44,7 @@ public class NetworkCommunicationService {
      * Constructor for the service
      */
     public NetworkCommunicationService(String client, int udpPort) {
-        // init insatnce variables
+        // init instance variables
         clientHostString = client;
         clientUDPPort = udpPort;
         serverSocket = null;
@@ -255,7 +254,8 @@ public class NetworkCommunicationService {
      * @return integer value that is the received message
      * @throws SocketTimeoutException if connection timeouts
      */
-    public int listenToTCPMessage() throws SocketTimeoutException {
+    public int listenToTCPMessage(int workerNumber) throws SocketTimeoutException {
+        String workerName = workerNumber == -1 ? "Main thread" :"Worker " + workerNumber;
         try {
             int msg = oIs.readInt();
 //            System.out.println("Received message: " + msg);
@@ -263,10 +263,14 @@ public class NetworkCommunicationService {
         } catch (EOFException e) {
         } catch (IOException e) {
             e.printStackTrace();
-            LOG.warning("Error receiving TCP message: " + e.getCause());
+            LOG.warning(workerName + ": Error receiving TCP message: " + e.getCause());
         }
         // close connection
         return 0;
+    }
+
+    public int listenToTCPMessage() throws SocketTimeoutException {
+        return listenToTCPMessage(-1);
     }
 
     /**

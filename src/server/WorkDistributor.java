@@ -144,6 +144,7 @@ public class WorkDistributor {
 		private boolean makeTest(int question, int answer,
 				ObjectOutputStream masterOut, ObjectInputStream masterIn)
 				throws IOException {
+            System.out.println("Question " + question + " answer " + answer);
 			masterOut.writeInt(question);
 			masterOut.flush();
 			int answerRead = masterIn.readInt();

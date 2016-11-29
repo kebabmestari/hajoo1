@@ -8,11 +8,10 @@ import java.util.logging.Logger;
 
 /**
  * Main class
- * <p>
+ *
  * Provides number summing services for a remote server
  *
  * @author Samuel Lindqvist
- *         Created by samlinz on 21.11.2016.
  */
 public class NumberService {
 
@@ -124,7 +123,10 @@ public class NumberService {
     }
 
     /**
-     * Create workers
+     * Create the NumberWorkers
+     *
+     * @param count count of workers
+     * @return array of integers which are the ports the workers are listening to
      */
     private int[] createWorkers(int count) {
         int[] result = new int[count];
@@ -132,7 +134,7 @@ public class NumberService {
 
             // new thread safe status object
             WorkerStatus status = new WorkerStatus();
-            NumberWorker worker = new NumberWorker(i, status);
+            NumberWorker worker = new NumberWorker(status);
             workerStatuses.put(worker, status);
 
             // create a new thread object for worker and add to list
@@ -171,12 +173,12 @@ public class NumberService {
             } catch (Exception e) {
                 e.printStackTrace();
             }
-            try {
-                Thread.sleep(5);
-            } catch (InterruptedException e) {
-                LOG.warning("Main thread interrupted");
-                exit();
-            }
+//            try {
+//                Thread.sleep(5);
+//            } catch (InterruptedException e) {
+//                LOG.warning("Main thread interrupted");
+//                exit();
+//            }
         }
         closeConnection();
     }
@@ -189,7 +191,7 @@ public class NumberService {
      */
     private boolean handleQuery(int msg) {
         if (msg == ControlMessage.QUERY_MAX_SUM_WORKER.getValue()) {
-            int answer = getLargestIndividualWorkerSum();
+            int answer = getLargestIndividualSumWorker();
             LOG.info("Received query MAX_SUM_WORKER, answering " + answer);
             netService.sendTCPMessage(answer);
         } else if (msg == ControlMessage.QUERY_SUM_COMPLETE.getValue()) {
@@ -212,13 +214,17 @@ public class NumberService {
     /**
      * @return largest of the individual worker's sums
      */
-    private int getLargestIndividualWorkerSum() {
-        int largest = 0;
-        for(WorkerStatus e : workerStatuses.values()) {
-            int val = e.getSum();
-            if(val > largest) largest = val;
+    private int getLargestIndividualSumWorker() {
+        int largest = Integer.MIN_VALUE;
+        NumberWorker largestWorker = null;
+        for(NumberWorker w : workerStatuses.keySet()) {
+            int tempSum = w.getSum();
+            if(tempSum > largest) {
+                largest = tempSum;
+                largestWorker = w;
+            }
         }
-        return largest;
+        return largestWorker.getId();
     }
 
     /**
@@ -246,10 +252,17 @@ public class NumberService {
     /**
      * Close connection
      */
-    public void closeConnection() {
+    private void closeConnection() {
+
+        // close X connection to client
         if (netService != null) netService.closeConnection();
+
+//        threadList.stream().forEach((t) -> t.interrupt());
+
         // tell each worker to stop and quit
-        threadList.stream().forEach((t) -> t.interrupt());
+        workerStatuses.keySet().forEach((w) -> {
+            w.closeWorker();
+        });
 
         LOG.info("Waiting for workers to close");
 

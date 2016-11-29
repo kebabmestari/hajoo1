@@ -2,7 +2,8 @@ package numservice;
 
 /**
  * Maps control messages to corresponding values
- * Created by samlinz on 21.11.2016.
+ *
+ * @author Samuel Lindqvist
  */
 public enum ControlMessage {
     // time out when waiting the worker count

@@ -8,7 +8,8 @@ import java.util.logging.LogRecord;
 /**
  * Custom log message formatter for improved readability
  * Default one is a cluttered mess
- * Created by samlinz on 24.11.2016.
+ *
+ * @author Samuel Lindqvist
  */
 public class CustomLogFormatter extends Formatter {
 

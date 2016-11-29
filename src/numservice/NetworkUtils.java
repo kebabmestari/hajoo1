@@ -4,8 +4,9 @@ import java.io.IOException;
 import java.net.ServerSocket;
 
 /**
- * Utilities for the other classes
- * Created by samlinz on 21.11.2016.
+ * Networking related utilities for the other classes
+ *
+ * @author Samuel Lindqvist
  */
 public class NetworkUtils {
 
